@@ -333,8 +333,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <nav className="h-16 glass-nav border-b border-slate-200 flex items-center px-6 md:px-16 justify-between sticky top-0 z-50 no-print">
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-black">A</div>
-          <span className="font-extrabold text-lg text-slate-900">AnatomyGuru <span className="text-red-600">Audit</span></span>
+
         </div>
         {view === 'report' && (
           <div className="flex gap-2">
@@ -349,7 +348,7 @@ const App: React.FC = () => {
         {view === 'dashboard' ? (
           <div className="max-w-4xl mx-auto py-12 animate-fade-in">
             <div className="text-center mb-16">
-              <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">Clinical <span className="text-red-600">Evaluation</span></h1>
+              <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">Medical <span className="text-red-600">Evaluation</span></h1>
               <p className="text-slate-500 font-medium text-lg">Professional medical audit engine. Extracts marks and identifies knowledge gaps.</p>
             </div>
 

@@ -97,9 +97,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-red-100 selection:text-red-900">
       <nav className="h-16 border-b bg-white/80 backdrop-blur-md flex items-center px-6 md:px-12 justify-between sticky top-0 z-50 no-print shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-sm rotate-3">A</div>
-          <span className="font-black text-xl tracking-tighter text-slate-900 hidden sm:inline">AnatomyGuru <span className="text-red-600">Audit</span></span>
-          <span className="font-black text-xl tracking-tighter text-slate-900 sm:hidden">AG Audit</span>
+          
         </div>
         {view === 'report' && (
           <div className="flex items-center gap-2">
