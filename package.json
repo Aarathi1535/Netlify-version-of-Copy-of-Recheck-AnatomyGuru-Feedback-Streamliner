@@ -1,5 +1,5 @@
 {
-  "name": "netlify-version-of-copy-of-recheck-anatomyguru-feedback-streamliner",
+  "name": "copy-of-recheck-anatomyguru-feedback-streamliner",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,10 @@
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@google/genai": "1.40.0",
     "mammoth": "1.8.0",
     "pdfjs-dist": "4.0.379",
-    "docx": "9.1.0"
+    "docx": "9.1.0",
+    "@google/genai": "^1.41.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

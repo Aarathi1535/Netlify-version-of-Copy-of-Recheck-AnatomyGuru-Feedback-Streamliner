@@ -21,14 +21,14 @@ export const generateStructuredFeedback = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Network error or unexpected response" }));
-      throw new Error(errorData.error || "Failed to generate report from serverless function.");
+      const errorData = await response.json().catch(() => ({ error: "Server connection failed" }));
+      throw new Error(errorData.error || "Analysis failed on server.");
     }
 
     const data = await response.json();
     return data as EvaluationReport;
   } catch (error: any) {
-    console.error("Service Error:", error);
-    throw new Error(error.message || "An unexpected error occurred during evaluation.");
+    console.error("Gemini Service Error:", error);
+    throw new Error(error.message || "An unexpected error occurred during processing.");
   }
 };

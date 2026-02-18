@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
 const container = document.getElementById('root');
-
 if (container) {
   const root = createRoot(container);
   root.render(
@@ -11,6 +10,4 @@ if (container) {
       <App />
     </React.StrictMode>
   );
-} else {
-  console.error("AnatomyGuru: Target container #root not found.");
 }
