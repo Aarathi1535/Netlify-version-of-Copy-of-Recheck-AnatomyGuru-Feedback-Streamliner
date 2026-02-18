@@ -66,6 +66,7 @@ export const generateStructuredFeedback = async (
 
     promptParts.push({ text: "Based on the provided medical evaluation documents, generate the comprehensive evaluation report JSON." });
 
+    // Use absolute-style path for fetch to ensure it hits the Netlify function endpoint correctly
     const response = await fetch("/.netlify/functions/evaluate", {
       method: "POST",
       headers: {
@@ -82,7 +83,6 @@ export const generateStructuredFeedback = async (
       throw new Error(data.error || "Analysis failed on server.");
     }
 
-    // Since the model returns a JSON string in 'output', we parse it.
     let reportData: EvaluationReport;
     try {
       let cleanOutput = data.output.trim();
