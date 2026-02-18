@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== "POST") {
@@ -22,7 +22,38 @@ export const handler = async (event: any) => {
       SOURCE DOC: Question Paper, Answer Key, and Student Answers.
       MODE: ${mode}.
       ${mode === 'with-manual' ? 'Prioritize Answer Key for facts, Faculty Notes for marks. Flag factual contradictions.' : 'Evaluate ALL questions in QP against Key.'}
-      OUTPUT: Valid JSON only. Include exhaustive "questions" array.
+      
+      OUTPUT: You MUST return strictly valid JSON. DO NOT include markdown formatting like \`\`\`json.
+      
+      The JSON structure MUST be:
+      {
+        "studentName": string,
+        "testTitle": string,
+        "testTopics": string,
+        "testDate": string,
+        "totalScore": number,
+        "maxScore": number,
+        "questions": [
+          {
+            "qNo": string,
+            "feedbackPoints": string[],
+            "marks": number,
+            "maxMarks": number,
+            "isCorrect": boolean,
+            "isFlagged": boolean
+          }
+        ],
+        "generalFeedback": {
+          "overallPerformance": string[],
+          "mcqs": string[],
+          "contentAccuracy": string[],
+          "completenessOfAnswers": string[],
+          "presentationDiagrams": string[],
+          "investigations": string[],
+          "attemptingQuestions": string[],
+          "actionPoints": string[]
+        }
+      }
     `;
 
     const createPart = (data: any, label: string) => {
@@ -34,7 +65,7 @@ export const handler = async (event: any) => {
 
     const parts = [...createPart(sourceDoc, "Source Document")];
     if (mode === 'with-manual') parts.push(...createPart(dirtyFeedbackDoc, "Faculty Notes"));
-    parts.push({ text: "Generate the JSON evaluation report." });
+    parts.push({ text: "Based on the provided documents, generate the comprehensive evaluation report JSON." });
 
     const result = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -42,58 +73,25 @@ export const handler = async (event: any) => {
       config: {
         systemInstruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            studentName: { type: Type.STRING },
-            testTitle: { type: Type.STRING },
-            testTopics: { type: Type.STRING },
-            testDate: { type: Type.STRING },
-            totalScore: { type: Type.NUMBER },
-            maxScore: { type: Type.NUMBER },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  qNo: { type: Type.STRING },
-                  feedbackPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  marks: { type: Type.NUMBER },
-                  maxMarks: { type: Type.NUMBER },
-                  isCorrect: { type: Type.BOOLEAN },
-                  isFlagged: { type: Type.BOOLEAN }
-                },
-                required: ["qNo", "feedbackPoints", "marks", "maxMarks", "isCorrect"]
-              }
-            },
-            generalFeedback: {
-              type: Type.OBJECT,
-              properties: {
-                overallPerformance: { type: Type.ARRAY, items: { type: Type.STRING } },
-                mcqs: { type: Type.ARRAY, items: { type: Type.STRING } },
-                contentAccuracy: { type: Type.ARRAY, items: { type: Type.STRING } },
-                completenessOfAnswers: { type: Type.ARRAY, items: { type: Type.STRING } },
-                presentationDiagrams: { type: Type.ARRAY, items: { type: Type.STRING } },
-                investigations: { type: Type.ARRAY, items: { type: Type.STRING } },
-                attemptingQuestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                actionPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
-              }
-            }
-          },
-          required: ["studentName", "testTitle", "questions"]
-        }
       }
     });
+
+    // Strip markdown code blocks if the model accidentally includes them despite instructions
+    let jsonString = result.text.trim();
+    if (jsonString.startsWith('```')) {
+      jsonString = jsonString.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    }
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: result.text
+      body: jsonString
     };
   } catch (error: any) {
+    console.error("Function Error:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message || "Internal error" })
+      body: JSON.stringify({ error: error.message || "Internal error during AI processing" })
     };
   }
 };

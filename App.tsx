@@ -71,6 +71,8 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50">
       <nav className="h-16 border-b bg-white flex items-center px-8 justify-between sticky top-0 z-50 no-print shadow-sm">
         <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-sm">A</div>
+          <span className="font-black text-xl tracking-tighter text-slate-900">AnatomyGuru <span className="text-red-600">Audit</span></span>
         </div>
         {view === 'report' && (
           <button 
