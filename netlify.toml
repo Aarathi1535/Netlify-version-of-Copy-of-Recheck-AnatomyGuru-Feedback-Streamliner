@@ -1,12 +1,5 @@
-
 [build]
   publish = "."
-  command = "# No build command needed for simple ESM structure"
 
 [functions]
   directory = "netlify/functions"
-  [functions.node_bundle]
-    external_node_modules = [
-      "module-one",
-      "module-two"
-    ]
