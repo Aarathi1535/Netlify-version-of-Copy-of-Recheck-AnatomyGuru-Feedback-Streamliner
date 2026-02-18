@@ -8,28 +8,21 @@ export const handler = async (event) => {
     "Access-Control-Allow-Methods": "POST, OPTIONS"
   };
 
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
 
   try {
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("Server configuration error: API_KEY is missing.");
-    }
+    if (!apiKey) throw new Error("API_KEY missing.");
 
     const { prompt } = JSON.parse(event.body || "{}");
-    if (!prompt) {
-      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: "No prompt provided." }) };
-    }
-
     const ai = new GoogleGenAI({ apiKey });
+    
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.1, // Keep medical audits consistent
+        temperature: 0.1,
       },
     });
 
@@ -39,9 +32,9 @@ export const handler = async (event) => {
       body: JSON.stringify({ success: true, output: response.text }),
     };
   } catch (err) {
-    console.error("Audit Function Error:", err);
+    console.error("Evaluation Error:", err);
     return {
-      statusCode: 200, // Return 200 with error payload for cleaner frontend handling
+      statusCode: 200,
       headers,
       body: JSON.stringify({ success: false, error: err.message }),
     };

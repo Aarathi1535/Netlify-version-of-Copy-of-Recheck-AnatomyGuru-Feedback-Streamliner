@@ -13,9 +13,8 @@
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: white; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #ef4444; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
-        #fallback-message { display: none; padding: 20px; max-width: 400px; margin: 20px auto; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; color: #9f1239; font-size: 14px; text-align: center; }
     </style>
-    <!-- Babel standalone allows running .tsx directly in the browser for static deployments -->
+    <!-- Babel standalone allows running TSX/JSX directly in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="importmap">
 {
@@ -24,9 +23,9 @@
     "react-dom": "https://esm.sh/react-dom@19.0.0",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?external=react",
     "mammoth": "https://esm.sh/mammoth@1.8.0",
-    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/"
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0"
   }
 }
 </script>
@@ -36,12 +35,10 @@
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; color: #1e293b;">
             <div class="spinner"></div>
             <h1 style="font-weight: 900; font-size: 1.5rem; margin: 0; letter-spacing: -0.02em;">AnatomyGuru</h1>
-            <p style="color: #64748b; font-size: 0.9rem; margin-top: 8px;">Booting Audit Engine...</p>
-            <div id="fallback-message">
-                <strong>Deployment Sync:</strong> The engine is initializing. If this takes more than 10 seconds, please refresh.
-            </div>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: 8px;">Initialising Audit Engine...</p>
         </div>
     </div>
+    <!-- Load and transpile index.tsx -->
     <script type="text/babel" data-type="module" data-presets="typescript,react" src="./index.tsx"></script>
 </body>
 </html>
