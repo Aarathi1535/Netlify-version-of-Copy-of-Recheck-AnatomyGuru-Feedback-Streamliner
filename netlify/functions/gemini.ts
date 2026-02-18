@@ -37,7 +37,7 @@ export const handler = async (event: any) => {
     parts.push({ text: "Generate the JSON evaluation report." });
 
     const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-pro",
       contents: [{ parts }],
       config: {
         systemInstruction,
