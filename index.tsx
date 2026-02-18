@@ -2,32 +2,30 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-const boot = () => {
-  const container = document.getElementById('root');
-  if (!container) return;
+console.log("AnatomyGuru: Script execution started.");
 
+const container = document.getElementById('root');
+
+if (container) {
   try {
+    console.log("AnatomyGuru: Attempting to create root...");
     const root = createRoot(container);
+    console.log("AnatomyGuru: Root created. Calling render...");
     root.render(
       <React.StrictMode>
         <App />
       </React.StrictMode>
     );
-    console.log("AnatomyGuru System: Core engine started.");
+    console.log("AnatomyGuru: React root.render called successfully.");
   } catch (error) {
-    console.error("AnatomyGuru System: Critical failure during boot.", error);
+    console.error("AnatomyGuru: Critical failure during React mount.", error);
     container.innerHTML = `
       <div style="padding: 40px; text-align: center; color: #ef4444; font-family: sans-serif;">
-        <h2 style="font-weight: 900;">Mounting Error</h2>
+        <h2 style="font-weight: 900;">Mount Error</h2>
         <p>${error instanceof Error ? error.message : String(error)}</p>
       </div>
     `;
   }
-};
-
-// Check if DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
 } else {
-  boot();
+  console.error("AnatomyGuru: Root element not found in DOM.");
 }
