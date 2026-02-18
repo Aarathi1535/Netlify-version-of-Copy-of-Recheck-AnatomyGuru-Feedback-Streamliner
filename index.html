@@ -12,18 +12,18 @@
         .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: white; } }
     </style>
-    <!-- Diagnostic Script: If JS crashes, show the error on screen -->
     <script>
+        // Diagnostic helper to catch errors before React boots
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             const root = document.getElementById('root');
             if (root) {
                 root.innerHTML = `
-                    <div style="padding: 40px; font-family: system-ui; color: #e11d48; max-width: 600px; margin: auto;">
-                        <h1 style="font-weight: 900; letter-spacing: -0.05em;">System Crash</h1>
-                        <p style="background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3; font-family: monospace; font-size: 13px;">
-                            ${msg}<br><br>At: ${url}:${lineNo}:${columnNo}
-                        </p>
-                        <button onclick="window.location.reload()" style="background: #1e293b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">Retry Initialisation</button>
+                    <div style="padding: 40px; font-family: system-ui; color: #ef4444; max-width: 600px; margin: auto; text-align: center;">
+                        <h1 style="font-weight: 900; letter-spacing: -0.05em; font-size: 2rem; margin-bottom: 1rem;">System Error</h1>
+                        <div style="background: #fff1f2; padding: 20px; border-radius: 12px; border: 1px solid #fecdd3; font-family: monospace; font-size: 14px; text-align: left; overflow-x: auto;">
+                            ${msg}<br><br><small>Location: ${url}:${lineNo}:${columnNo}</small>
+                        </div>
+                        <button onclick="window.location.reload()" style="margin-top: 20px; background: #1e293b; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 700;">Retry Initialisation</button>
                     </div>
                 `;
             }
@@ -36,12 +36,12 @@
     "react": "https://esm.sh/react@19.0.0",
     "react-dom": "https://esm.sh/react-dom@19.0.0",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "react/": "https://esm.sh/react@19.0.0/",
-    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
     "@google/genai": "https://esm.sh/@google/genai@1.40.0",
     "mammoth": "https://esm.sh/mammoth@1.8.0",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379",
-    "docx": "https://esm.sh/docx@9.1.0"
+    "docx": "https://esm.sh/docx@9.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
 </script>
@@ -50,9 +50,9 @@
     <div id="root">
         <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc;">
             <div style="text-align: center;">
-                <div style="width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #ef4444; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                <p style="font-weight: 800; color: #1e293b; font-size: 1.25rem; margin: 0; letter-spacing: -0.02em;">Initialising AnatomyGuru</p>
-                <p style="color: #64748b; font-size: 0.875rem; margin-top: 8px;">Preparing medical evaluation environment...</p>
+                <div style="width: 48px; height: 48px; border: 5px solid #e2e8f0; border-top: 5px solid #ef4444; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px;"></div>
+                <p style="font-weight: 900; color: #1e293b; font-size: 1.5rem; margin: 0; letter-spacing: -0.02em;">AnatomyGuru</p>
+                <p style="color: #64748b; font-size: 0.95rem; margin-top: 12px; font-weight: 500;">Initialising medical evaluation engine...</p>
             </div>
         </div>
     </div>

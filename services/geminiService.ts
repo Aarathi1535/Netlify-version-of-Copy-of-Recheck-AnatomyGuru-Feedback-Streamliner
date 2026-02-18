@@ -1,4 +1,3 @@
-
 import { EvaluationReport, FileData } from "../types";
 
 export type EvaluationMode = 'with-manual' | 'without-manual';
@@ -9,7 +8,7 @@ export const generateStructuredFeedback = async (
   mode: EvaluationMode = 'with-manual'
 ): Promise<EvaluationReport> => {
   try {
-    const response = await fetch("/.netlify/functions/evaluate", {
+    const response = await fetch("/.netlify/functions/gemini", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -22,8 +21,8 @@ export const generateStructuredFeedback = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to generate report");
+      const errorData = await response.json().catch(() => ({ error: "Network error or unexpected response" }));
+      throw new Error(errorData.error || "Failed to generate report from serverless function.");
     }
 
     const data = await response.json();
