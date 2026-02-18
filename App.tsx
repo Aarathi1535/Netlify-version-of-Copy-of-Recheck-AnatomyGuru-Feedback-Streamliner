@@ -102,12 +102,21 @@ const App: React.FC = () => {
           <span className="font-black text-xl tracking-tighter text-slate-900 sm:hidden">AG Audit</span>
         </div>
         {view === 'report' && (
-          <button 
-            onClick={() => { setView('dashboard'); setReport(null); }}
-            className="text-xs font-black bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md active:scale-95 uppercase tracking-wider"
-          >
-            New Audit
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => window.print()}
+              className="text-[10px] font-black bg-white text-slate-900 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-all shadow-sm active:scale-95 uppercase tracking-wider flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 012-2H5a2 2 0 012 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+              Print
+            </button>
+            <button 
+              onClick={() => { setView('dashboard'); setReport(null); }}
+              className="text-[10px] font-black bg-slate-900 text-white px-3 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md active:scale-95 uppercase tracking-wider"
+            >
+              New Audit
+            </button>
+          </div>
         )}
       </nav>
 
