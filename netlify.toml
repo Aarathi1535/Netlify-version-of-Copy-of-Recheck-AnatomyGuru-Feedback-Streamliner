@@ -4,6 +4,11 @@
 
 [functions]
   timeout = 26
+  [functions.timeout]
+    external_node_modules = [
+      "module-one",
+      "module-two"
+    ]
 
 [[redirects]]
   from = "/.netlify/functions/*"
