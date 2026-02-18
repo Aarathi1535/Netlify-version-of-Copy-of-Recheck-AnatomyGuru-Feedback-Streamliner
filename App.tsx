@@ -11,13 +11,17 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } from 'docx';
 
 // Safe resolution of PDF.js object
-const pdfjs: any = (pdfjsLib as any).GlobalWorkerOptions 
-  ? pdfjsLib 
-  : (pdfjsLib as any).default || pdfjsLib;
+let pdfjs: any = null;
+try {
+  pdfjs = (pdfjsLib as any).GlobalWorkerOptions 
+    ? pdfjsLib 
+    : (pdfjsLib as any).default || pdfjsLib;
 
-// Set up PDF.js worker using a version-matched CDN
-if (pdfjs && pdfjs.GlobalWorkerOptions) {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+  if (pdfjs && pdfjs.GlobalWorkerOptions) {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+  }
+} catch (e) {
+  console.warn("AnatomyGuru: PDF.js initialisation deferred", e);
 }
 
 const App: React.FC = () => {
@@ -36,7 +40,7 @@ const App: React.FC = () => {
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
     if (!pdfjs || !pdfjs.getDocument) {
-      throw new Error("PDF.js library not properly initialized.");
+      throw new Error("PDF.js library is not available in your browser.");
     }
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
@@ -72,7 +76,7 @@ const App: React.FC = () => {
           return { text, name: file.name, isDocx: false };
         }
       } catch (e) {
-        console.warn("PDF extraction fallback to Vision", e);
+        console.warn("PDF extraction failed, falling back to vision processing", e);
       }
     }
 
@@ -129,75 +133,79 @@ const App: React.FC = () => {
 
   const handleExportWord = async () => {
     if (!report) return;
+    try {
+      const sections = [];
+      sections.push(
+        new Paragraph({
+          children: [new TextRun(report.testTitle || 'Evaluation Report')],
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Student Name: `, bold: true }),
+            new TextRun({ text: report.studentName || 'N/A' }),
+          ],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Date: `, bold: true }),
+            new TextRun({ text: report.testDate || 'N/A' }),
+          ],
+        }),
+        new Paragraph({ children: [] }) 
+      );
 
-    const sections = [];
-    sections.push(
-      new Paragraph({
-        children: [new TextRun(report.testTitle || 'Evaluation Report')],
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER,
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Student Name: `, bold: true }),
-          new TextRun({ text: report.studentName || 'N/A' }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Date: `, bold: true }),
-          new TextRun({ text: report.testDate || 'N/A' }),
-        ],
-      }),
-      new Paragraph({ children: [] }) 
-    );
-
-    const tableRows = [
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Q No", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Feedback", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Marks", bold: true })] })] }),
-        ],
-      }),
-    ];
-
-    report.questions.forEach((q) => {
-      tableRows.push(
+      const tableRows = [
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun(q.qNo)] })] }),
-            new TableCell({
-              children: q.feedbackPoints.map(p => new Paragraph({ 
-                children: [new TextRun("• " + p)], 
-                spacing: { before: 100 } 
-              })),
-            }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun(`${q.marks}`)] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Q No", bold: true })] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Feedback", bold: true })] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Marks", bold: true })] })] }),
           ],
-        })
-      );
-    });
+        }),
+      ];
 
-    const doc = new Document({
-      sections: [{
-        children: [
-          ...sections,
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: tableRows,
-          }),
-        ],
-      }],
-    });
+      report.questions.forEach((q) => {
+        tableRows.push(
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun(q.qNo)] })] }),
+              new TableCell({
+                children: q.feedbackPoints.map(p => new Paragraph({ 
+                  children: [new TextRun("• " + p)], 
+                  spacing: { before: 100 } 
+                })),
+              }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun(`${q.marks}`)] })] }),
+            ],
+          })
+        );
+      });
 
-    const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${report.studentName || 'Evaluation'}_Report.docx`;
-    link.click();
-    URL.revokeObjectURL(url);
+      const doc = new Document({
+        sections: [{
+          children: [
+            ...sections,
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: tableRows,
+            }),
+          ],
+        }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${report.studentName || 'Evaluation'}_Report.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Word Export Error:", e);
+      setError("Failed to generate Word document. Please try again.");
+    }
   };
 
   const renderDashboard = () => (
