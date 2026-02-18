@@ -1,24 +1,23 @@
-
 import React, { useState, useEffect } from 'react';
-import { generateStructuredFeedback, EvaluationMode } from './services/geminiService';
-import { EvaluationReport, FileData } from './types';
-import FileUploader from './components/FileUploader';
-import FeedbackReport from './components/FeedbackReport';
+import { generateStructuredFeedback, EvaluationMode } from './services/geminiService.ts';
+import { EvaluationReport, FileData } from './types.ts';
+import FileUploader from './components/FileUploader.tsx';
+import FeedbackReport from './components/FeedbackReport.tsx';
 // @ts-ignore
 import mammoth from 'mammoth';
 // @ts-ignore
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel, VerticalAlign } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } from 'docx';
 
-// Safe resolution of PDF.js object for different ESM environments
+// Safe resolution of PDF.js object
 const pdfjs: any = (pdfjsLib as any).GlobalWorkerOptions 
   ? pdfjsLib 
   : (pdfjsLib as any).default || pdfjsLib;
 
-// Set up PDF.js worker using a compatible CDN for v3.11.174
+// Set up PDF.js worker using a version-matched CDN
 if (pdfjs && pdfjs.GlobalWorkerOptions) {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
 }
 
 const App: React.FC = () => {
@@ -125,24 +124,14 @@ const App: React.FC = () => {
   };
 
   const handleExportPDF = () => {
-    if (sourceDoc) {
-      const originalTitle = document.title;
-      document.title = sourceDoc.name;
-      window.print();
-      document.title = originalTitle;
-    } else {
-      window.print();
-    }
+    window.print();
   };
 
   const handleExportWord = async () => {
     if (!report) return;
 
     const sections = [];
-
-    // Header Info
     sections.push(
-      // FIX: Move text to TextRun children within Paragraph options
       new Paragraph({
         children: [new TextRun(report.testTitle || 'Evaluation Report')],
         heading: HeadingLevel.HEADING_1,
@@ -160,21 +149,12 @@ const App: React.FC = () => {
           new TextRun({ text: report.testDate || 'N/A' }),
         ],
       }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Topics: `, bold: true }),
-          new TextRun({ text: report.testTopics || 'N/A' }),
-        ],
-      }),
-      // FIX: Replace text property with children for spacer paragraph
       new Paragraph({ children: [] }) 
     );
 
-    // Questions Table
     const tableRows = [
       new TableRow({
         children: [
-          // FIX: Move bold property to TextRun inside TableCell's Paragraph
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Q No", bold: true })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Feedback", bold: true })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Marks", bold: true })] })] }),
@@ -186,8 +166,7 @@ const App: React.FC = () => {
       tableRows.push(
         new TableRow({
           children: [
-            // FIX: Use children with TextRun instead of text property
-            new TableCell({ children: [new Paragraph({ children: [new TextRun(q.qNo + (q.isFlagged ? " (🚩)" : ""))] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun(q.qNo)] })] }),
             new TableCell({
               children: q.feedbackPoints.map(p => new Paragraph({ 
                 children: [new TextRun("• " + p)], 
@@ -200,61 +179,15 @@ const App: React.FC = () => {
       );
     });
 
-    // Total Row
-    const calculatedSum = report.questions?.reduce((acc: number, q: any) => acc + (Number(q.marks) || 0), 0) || 0;
-    tableRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ 
-            columnSpan: 2, 
-            // FIX: Use children with TextRun to support bold styling in Paragraph
-            children: [new Paragraph({ 
-              children: [new TextRun({ text: "Total Score Summation", bold: true })], 
-              alignment: AlignmentType.RIGHT 
-            })] 
-          }),
-          // FIX: Wrap text in TextRun with bold property inside Paragraph
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${calculatedSum} / ${report.maxScore}`, bold: true })] })] }),
-        ],
-      })
-    );
-
-    const table = new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: tableRows,
-    });
-
-    sections.push(table);
-    sections.push(new Paragraph({ children: [] })); // Spacer
-
-    // General Feedback
-    const gf = report.generalFeedback;
-    const addGfSection = (title: string, items: string[]) => {
-      // FIX: Use TextRun for bold styling of section titles
-      sections.push(new Paragraph({ 
-        children: [new TextRun({ text: title, bold: true })], 
-        spacing: { before: 200 } 
-      }));
-      items.forEach(item => {
-        sections.push(new Paragraph({ 
-          children: [new TextRun("• " + item)], 
-          spacing: { before: 100 } 
-        }));
-      });
-    };
-
-    addGfSection("1) Overall Performance", gf.overallPerformance);
-    addGfSection("2) MCQs", gf.mcqs);
-    addGfSection("3) Content Accuracy", gf.contentAccuracy);
-    addGfSection("4) Completeness of Answers", gf.completenessOfAnswers);
-    addGfSection("5) Presentation & Diagrams", gf.presentationDiagrams);
-    addGfSection("6) Investigations", gf.investigations);
-    addGfSection("7) Attempting All Questions", gf.attemptingQuestions);
-    addGfSection("8) Action Points", gf.actionPoints);
-
     const doc = new Document({
       sections: [{
-        children: sections,
+        children: [
+          ...sections,
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: tableRows,
+          }),
+        ],
       }],
     });
 
@@ -262,26 +195,8 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${report.studentName || 'Report'}_Evaluation.docx`;
+    link.download = `${report.studentName || 'Evaluation'}_Report.docx`;
     link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadJSON = () => {
-    if (!report) return;
-    const dataStr = JSON.stringify(report, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const baseName = sourceDoc ? sourceDoc.name.replace(/\.[^/.]+$/, "") : "report";
-    const exportFileDefaultName = `${baseName}_analysis.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', url);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    document.body.appendChild(linkElement);
-    linkElement.click();
-    document.body.removeChild(linkElement);
     URL.revokeObjectURL(url);
   };
 
@@ -296,21 +211,18 @@ const App: React.FC = () => {
         </p>
       </header>
 
-      {/* Toggle Mode */}
       <div className="flex justify-center mb-10">
         <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center shadow-inner border border-slate-200">
           <button 
             onClick={() => setEvalMode('with-manual')}
             className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${evalMode === 'with-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             With Manual Feedback
           </button>
           <button 
             onClick={() => setEvalMode('without-manual')}
             className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${evalMode === 'without-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             Automated (Key Only)
           </button>
         </div>
@@ -336,41 +248,25 @@ const App: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-600 p-6 rounded-2xl mb-8 flex items-start gap-4 animate-shake shadow-lg">
-          <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center shrink-0 text-rose-600">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path></svg>
-          </div>
-          <div>
-            <p className="font-black uppercase tracking-widest text-[10px] mb-1">Processing Error</p>
-            <span className="font-semibold text-base">{error}</span>
-          </div>
+        <div className="bg-rose-50 border border-rose-200 text-rose-600 p-6 rounded-2xl mb-8 flex items-start gap-4">
+          <p className="font-semibold">{error}</p>
         </div>
       )}
 
       <button
         onClick={handleAnalyze}
         disabled={isLoading || !sourceDoc || (evalMode === 'with-manual' && !dirtyFeedbackDoc)}
-        className={`w-full py-6 rounded-2xl font-black text-xl shadow-2xl transition-all flex flex-col items-center justify-center gap-1 relative overflow-hidden ${
-          isLoading 
-          ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-          : 'bg-slate-900 hover:bg-slate-800 text-white hover:-translate-y-1 active:scale-95'
+        className={`w-full py-6 rounded-2xl font-black text-xl shadow-2xl transition-all flex flex-col items-center justify-center gap-1 ${
+          isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 text-white hover:-translate-y-1'
         }`}
       >
         {isLoading ? (
-          <>
-            <div className="flex items-center gap-4">
-              <svg className="animate-spin h-6 w-6 text-red-500" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <span className="animate-pulse tracking-widest uppercase text-sm font-black">Synthesizing Feedback</span>
-            </div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 opacity-70">
-              {loadingStep}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-3">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Generate Professional Feedback
+          <div className="flex items-center gap-4">
+            <svg className="animate-spin h-6 w-6 text-red-500" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <span className="animate-pulse tracking-widest uppercase text-sm font-black">{loadingStep || 'Analyzing...'}</span>
           </div>
+        ) : (
+          'Generate Professional Feedback'
         )}
       </button>
     </div>
@@ -380,47 +276,27 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#f8f9fa]">
       <nav className="bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50 no-print h-16 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-          <div className="flex items-center">
-             {view === 'report' ? (
-              <button 
-                onClick={() => {
-                  setReport(null);
-                  setView('dashboard');
-                  setError(null);
-                }}
-                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-bold transition-all text-sm group"
-              >
-                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                </div>
-                New Analysis
-              </button>
-            ) : null}
-          </div>
+          
           
           {view === 'report' && report && (
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2">
               <button 
-                onClick={handleDownloadJSON}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border border-slate-300"
-                title="Download JSON Report"
+                onClick={() => setView('dashboard')}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all border border-slate-300"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                <span className="hidden lg:inline">JSON</span>
+                New Analysis
               </button>
               <button 
                 onClick={handleExportWord}
-                className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-xl shadow-blue-500/10"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-lg"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                Export Word
+                Word
               </button>
               <button 
                 onClick={handleExportPDF}
-                className="px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-xl shadow-red-500/10"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-lg"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                Export PDF
+                PDF
               </button>
             </div>
           )}
@@ -430,10 +306,6 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4">
         {view === 'dashboard' ? renderDashboard() : <FeedbackReport report={report} />}
       </main>
-
-      <footer className="mt-20 py-10 border-t border-slate-100 no-print text-center opacity-40">
-        <p className="text-xs font-bold uppercase tracking-[0.3em]">Intelligence Engine v4.6.5</p>
-      </footer>
     </div>
   );
 };
