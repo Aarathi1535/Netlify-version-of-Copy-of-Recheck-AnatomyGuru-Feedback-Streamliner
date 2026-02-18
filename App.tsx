@@ -17,50 +17,76 @@ const App: React.FC = () => {
   const [evalMode, setEvalMode] = useState<EvaluationMode>('with-manual');
 
   useEffect(() => {
-    if (report) setView('report');
+    if (report) {
+      setView('report');
+      window.scrollTo(0, 0);
+    }
   }, [report]);
 
   const processFile = async (file: File): Promise<FileData> => {
     const isDocx = file.name.toLowerCase().endsWith('.docx');
     if (isDocx) {
-      setLoadingStep("Parsing Word document...");
+      setLoadingStep(`Parsing ${file.name}...`);
       try {
         const arrayBuffer = await file.arrayBuffer();
+        if (arrayBuffer.byteLength === 0) throw new Error("File is empty.");
         const result = await mammoth.extractRawText({ arrayBuffer });
         return { text: result.value, name: file.name, isDocx: true };
-      } catch (e) {
+      } catch (e: any) {
         console.error("Mammoth error:", e);
-        throw new Error("Failed to parse DOCX file content.");
+        throw new Error(`Failed to parse DOCX: ${e.message || 'Unknown error'}`);
       }
     }
     
-    setLoadingStep("Processing visual data...");
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(',')[1]);
-      reader.onerror = () => reject(new Error("Failed to read file."));
-      reader.readAsDataURL(file);
-    });
-    return { base64, mimeType: file.type, name: file.name, isDocx: false };
+    setLoadingStep(`Processing ${file.name}...`);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result.split(',')[1]);
+          } else {
+            reject(new Error("File conversion failed."));
+          }
+        };
+        reader.onerror = () => reject(new Error("Failed to read file."));
+        reader.readAsDataURL(file);
+      });
+      return { base64, mimeType: file.type, name: file.name, isDocx: false };
+    } catch (e: any) {
+      throw new Error(`File Error: ${e.message}`);
+    }
   };
 
   const handleAnalyze = async () => {
-    if (!sourceDoc) return setError("Student Answer Sheet is required.");
-    if (evalMode === 'with-manual' && !dirtyFeedbackDoc) return setError("Faculty Notes are required for manual mode.");
+    if (!sourceDoc) {
+      setError("Please upload the Student Answer Sheet.");
+      return;
+    }
+    if (evalMode === 'with-manual' && !dirtyFeedbackDoc) {
+      setError("Please upload the Faculty Notes.");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
+    setLoadingStep("Reading files...");
+    
     try {
-      setLoadingStep("Optimizing documents...");
       const sData = await processFile(sourceDoc);
       const fData = dirtyFeedbackDoc ? await processFile(dirtyFeedbackDoc) : null;
       
       setLoadingStep("AI performing medical audit...");
       const res = await generateStructuredFeedback(sData, fData, evalMode);
+      
+      if (!res || !res.questions) {
+        throw new Error("Received invalid response format from AI.");
+      }
+      
       setReport(res);
     } catch (err: any) {
-      console.error("Analysis error:", err);
-      setError(err.message || "An unexpected error occurred during processing.");
+      console.error("Analysis sequence failure:", err);
+      setError(err.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
       setLoadingStep("");
@@ -68,48 +94,50 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <nav className="h-16 border-b bg-white flex items-center px-8 justify-between sticky top-0 z-50 no-print shadow-sm">
+    <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-red-100 selection:text-red-900">
+      <nav className="h-16 border-b bg-white/80 backdrop-blur-md flex items-center px-6 md:px-12 justify-between sticky top-0 z-50 no-print shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-sm">A</div>
-          <span className="font-black text-xl tracking-tighter text-slate-900">AnatomyGuru <span className="text-red-600">Audit</span></span>
+          <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-sm rotate-3">A</div>
+          <span className="font-black text-xl tracking-tighter text-slate-900 hidden sm:inline">AnatomyGuru <span className="text-red-600">Audit</span></span>
+          <span className="font-black text-xl tracking-tighter text-slate-900 sm:hidden">AG Audit</span>
         </div>
         {view === 'report' && (
           <button 
             onClick={() => { setView('dashboard'); setReport(null); }}
-            className="text-sm font-bold bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md active:scale-95"
+            className="text-xs font-black bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md active:scale-95 uppercase tracking-wider"
           >
-            New Analysis
+            New Audit
           </button>
         )}
       </nav>
 
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col">
         {view === 'dashboard' ? (
-          <div className="max-w-4xl mx-auto py-12 px-6 animate-fade-in">
-            <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">Medical <span className="text-red-600">Audit Engine</span></h1>
-              <p className="text-slate-500 font-medium text-lg">Extracting medical knowledge gaps with clinical precision.</p>
+          <div className="max-w-4xl mx-auto py-12 px-6 animate-fade-in w-full">
+            <div className="text-center mb-10">
+              <span className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black rounded-full uppercase tracking-widest border border-red-100 mb-4 inline-block">Medical Education SaaS</span>
+              <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">Clinical <span className="text-red-600">Audit Engine</span></h1>
+              <p className="text-slate-500 font-medium text-lg max-w-xl mx-auto">Transform student papers and faculty notes into structured medical feedback automatically.</p>
             </div>
 
             <div className="flex justify-center mb-10">
-              <div className="bg-slate-200/50 p-1.5 rounded-2xl border border-slate-200 flex shadow-inner">
+              <div className="bg-slate-200/50 p-1 rounded-2xl border border-slate-200 flex shadow-inner">
                 <button 
                   onClick={() => setEvalMode('with-manual')} 
-                  className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${evalMode === 'with-manual' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${evalMode === 'with-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  With Faculty Notes
+                  WITH FACULTY NOTES
                 </button>
                 <button 
                   onClick={() => setEvalMode('without-manual')} 
-                  className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all ${evalMode === 'without-manual' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${evalMode === 'without-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  Fully Automated
+                  AI ONLY (KEY BASED)
                 </button>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 mb-10">
+            <div className="grid md:grid-cols-2 gap-6 mb-10">
               <FileUploader 
                 label="Student Paper" 
                 description="Upload Answer Sheet (PDF/Image/DOCX)" 
@@ -120,7 +148,7 @@ const App: React.FC = () => {
               {evalMode === 'with-manual' && (
                 <FileUploader 
                   label="Faculty Notes" 
-                  description="Upload Handwritten Remarks (Image/PDF)" 
+                  description="Upload Handwritten Marks (Image/PDF)" 
                   onFileSelect={setDirtyFeedbackDoc} 
                   selectedFile={dirtyFeedbackDoc} 
                   icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}
@@ -129,8 +157,8 @@ const App: React.FC = () => {
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 p-5 rounded-2xl mb-8 font-bold text-sm border border-red-100 flex items-center gap-4 animate-shake">
-                <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div className="bg-rose-50 text-rose-700 p-4 rounded-2xl mb-8 font-bold text-sm border border-rose-100 flex items-center gap-4 animate-fade-in shadow-sm">
+                <svg className="w-6 h-6 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 {error}
               </div>
             )}
@@ -138,7 +166,7 @@ const App: React.FC = () => {
             <button 
               onClick={handleAnalyze} 
               disabled={isLoading || !sourceDoc || (evalMode === 'with-manual' && !dirtyFeedbackDoc)}
-              className={`w-full py-6 rounded-2xl font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800 hover:-translate-y-1 active:translate-y-0'}`}
+              className={`w-full py-6 rounded-2xl font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-wait' : 'bg-slate-900 text-white hover:bg-slate-800 hover:-translate-y-1 active:scale-[0.98]'}`}
             >
               {isLoading ? (
                 <>
@@ -146,17 +174,20 @@ const App: React.FC = () => {
                   <span className="uppercase tracking-widest text-sm">{loadingStep || 'Processing...'}</span>
                 </>
               ) : (
-                'Generate Professional Report'
+                'Generate Feedback Report'
               )}
             </button>
+            <p className="mt-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">Supports PDF • Image • DOCX</p>
           </div>
         ) : (
-          <FeedbackReport report={report} />
+          <div className="flex-1 overflow-auto bg-slate-100 py-8 px-4 sm:px-8">
+             <FeedbackReport report={report} />
+          </div>
         )}
       </main>
 
-      <footer className="py-8 text-center text-slate-400 text-xs font-medium no-print">
-        © 2025 AnatomyGuru Medical Education Solutions. Powered by Gemini.
+      <footer className="py-8 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] no-print">
+        AnatomyGuru Medical Audit Tool • © 2025 • Secured by Netlify
       </footer>
     </div>
   );

@@ -13,16 +13,15 @@
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: white; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #ef4444; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+        #fallback-message { display: none; padding: 20px; max-width: 400px; margin: 20px auto; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; color: #9f1239; font-size: 14px; text-align: center; }
     </style>
     <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
     "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?external=react",
     "mammoth": "https://esm.sh/mammoth@1.8.0",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379",
-    "docx": "https://esm.sh/docx@9.1.0",
     "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/"
@@ -35,9 +34,22 @@
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; color: #1e293b;">
             <div class="spinner"></div>
             <h1 style="font-weight: 900; font-size: 1.5rem; margin: 0; letter-spacing: -0.02em;">AnatomyGuru</h1>
-            <p style="color: #64748b; font-size: 0.9rem; margin-top: 8px;">Preparing medical environment...</p>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: 8px;">Booting Audit Engine...</p>
+            <div id="fallback-message">
+                <strong>Connection Error:</strong> The application is taking longer than expected to load. Please check your internet connection or refresh the page.
+            </div>
         </div>
     </div>
+    <script>
+        // Show fallback message if React hasn't mounted in 8 seconds
+        setTimeout(() => {
+            const fallback = document.getElementById('fallback-message');
+            const root = document.getElementById('root');
+            if (root && root.innerHTML.includes('spinner')) {
+                fallback.style.display = 'block';
+            }
+        }, 8000);
+    </script>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>
