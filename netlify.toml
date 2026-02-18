@@ -1,0 +1,8 @@
+
+[build]
+  publish = "."
+  command = "# No build command needed for simple ESM structure"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundle = true
