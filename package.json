@@ -14,7 +14,7 @@
     "mammoth": "1.8.0",
     "pdfjs-dist": "4.0.379",
     "docx": "9.1.0",
-    "@google/genai": "^1.41.0"
+    "@google/genai": "1.41.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
