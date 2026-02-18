@@ -2,6 +2,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions]
+  timeout = 26
+
 [[redirects]]
   from = "/.netlify/functions/*"
   to = "/.netlify/functions/:splat"
@@ -15,7 +18,6 @@
 [[headers]]
   for = "/*.tsx"
   [headers.values]
-    # We use text/plain or application/javascript so Babel can fetch the source text
     Content-Type = "application/javascript; charset=utf-8"
     X-Content-Type-Options = "nosniff"
 

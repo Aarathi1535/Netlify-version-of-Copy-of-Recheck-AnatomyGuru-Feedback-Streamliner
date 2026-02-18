@@ -12,13 +12,17 @@ export const handler = async (event) => {
 
   try {
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API_KEY missing.");
+    if (!apiKey) throw new Error("API_KEY environment variable is not configured.");
 
-    const { prompt } = JSON.parse(event.body || "{}");
+    const body = JSON.parse(event.body || "{}");
+    const { prompt } = body;
+    
+    if (!prompt) throw new Error("Prompt is missing in the request body.");
+
     const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -26,17 +30,24 @@ export const handler = async (event) => {
       },
     });
 
+    if (!response || !response.text) {
+      throw new Error("Gemini AI returned an empty response.");
+    }
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({ success: true, output: response.text }),
     };
   } catch (err) {
-    console.error("Evaluation Error:", err);
+    console.error("Evaluation Function Error:", err);
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, error: err.message }),
+      body: JSON.stringify({ 
+        success: false, 
+        error: err.message || "An internal error occurred while processing the medical audit." 
+      }),
     };
   }
 };

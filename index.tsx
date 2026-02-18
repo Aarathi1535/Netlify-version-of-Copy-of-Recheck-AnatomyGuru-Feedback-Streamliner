@@ -97,8 +97,14 @@ const generateStructuredFeedback = async (
     body: JSON.stringify({ prompt: promptParts }),
   });
 
+  if (response.status === 502 || response.status === 504) {
+    throw new Error("Server timeout: The audit is taking longer than expected due to large files. Please try with smaller documents or check your connection.");
+  }
+
   const data = await response.json();
-  if (!response.ok || !data.success) throw new Error(data.error || "Audit failed.");
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "The medical audit failed to process. Please try again.");
+  }
 
   let cleanOutput = data.output.trim();
   if (cleanOutput.startsWith('```')) {
@@ -117,7 +123,7 @@ const FileUploader: React.FC<{
   icon: React.ReactNode;
 }> = ({ label, description, onFileSelect, selectedFile, icon }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:border-red-500 hover:bg-red-50/30 transition-all cursor-pointer group relative">
+    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-white hover:border-red-500 hover:bg-red-50/30 transition-all cursor-pointer group relative shadow-sm">
       <input
         type="file"
         onChange={(e) => e.target.files?.[0] && onFileSelect(e.target.files[0])}
@@ -144,9 +150,9 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
   const logo = 'https://www.anatomyguru.in/assets/img/logo.jpg';
 
   return (
-    <div className="max-w-[850px] mx-auto my-6 sm:my-10 bg-white border border-slate-200 p-8 sm:p-14 text-slate-900 shadow-xl report-card animate-fade-in font-serif">
+    <div className="max-w-[850px] mx-auto my-6 sm:my-10 bg-white border border-slate-200 p-8 sm:p-14 text-slate-900 shadow-2xl report-card animate-fade-in font-serif">
       <div className="flex flex-col items-center mb-10">
-        <img src={logo} alt="Anatomy Guru Logo" className="w-56 sm:w-64 mb-6" />
+        <img src={logo} alt="Anatomy Guru Logo" className="w-56 sm:w-64 mb-6 grayscale hover:grayscale-0 transition-all duration-700" />
         <h2 className="text-red-600 text-lg font-black uppercase tracking-[0.2em] border-b-2 border-red-100 pb-1 mb-4 text-center">
           {report.testTitle || 'Clinical Evaluation Transcript'}
         </h2>
@@ -158,11 +164,11 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
 
       <div className="mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
         <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Candidate:</span>
-        <span className="text-base font-extrabold text-slate-900 underline">{report.studentName}</span>
+        <span className="text-base font-extrabold text-slate-900 underline decoration-red-200 decoration-2">{report.studentName}</span>
       </div>
 
       <div className="border border-slate-300 rounded-lg overflow-hidden mb-12">
-        <table className="w-full text-left">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 border-b border-slate-300">
             <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
               <th className="p-4 border-r border-slate-300 text-center w-16">No.</th>
@@ -210,6 +216,10 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
           </div>
         </div>
       </div>
+      <div className="mt-20 pt-8 border-t-2 border-slate-900 flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <span>Verified Digital Audit</span>
+        <span className="text-slate-900">Official AnatomyGuru Transcript</span>
+      </div>
     </div>
   );
 };
@@ -231,7 +241,7 @@ const App: React.FC = () => {
   }, [report]);
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
-    if (!pdfjs || !pdfjs.getDocument) throw new Error("PDF parser not ready.");
+    if (!pdfjs || !pdfjs.getDocument) throw new Error("PDF parser not initialized.");
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
@@ -262,10 +272,10 @@ const App: React.FC = () => {
       try {
         const text = await extractTextFromPDF(file);
         if (text.trim().length > 150) return { text, name: file.name, isDocx: false };
-      } catch (e) { console.warn("Fallback to Vision for PDF", e); }
+      } catch (e) { console.warn("Fallback to vision for PDF", e); }
     }
 
-    setLoadingStep(`Encoding Visual Data: ${file.name}`);
+    setLoadingStep(`Encoding visual data: ${file.name}`);
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -277,18 +287,23 @@ const App: React.FC = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!sourceDoc) { setError("Please upload the Student Paper."); return; }
-    if (evalMode === 'with-manual' && !dirtyFeedbackDoc) { setError("Please upload Faculty Notes."); return; }
+    if (!sourceDoc) { setError("Please upload the student answer sheet."); return; }
+    if (evalMode === 'with-manual' && !dirtyFeedbackDoc) { setError("Manual feedback mode requires faculty notes."); return; }
+    
     setIsLoading(true);
     setError(null);
     try {
       const sourceData = await processFile(sourceDoc);
       const feedbackData = evalMode === 'with-manual' && dirtyFeedbackDoc ? await processFile(dirtyFeedbackDoc) : null;
-      setLoadingStep("AI performing medical audit...");
+      setLoadingStep("AI performing complex audit...");
       const result = await generateStructuredFeedback(sourceData, feedbackData, evalMode);
       setReport(result);
-    } catch (err: any) { setError(err.message || "An error occurred."); } 
-    finally { setIsLoading(false); setLoadingStep(''); }
+    } catch (err: any) { 
+      setError(err.message || "An unexpected error occurred during document processing."); 
+    } finally { 
+      setIsLoading(false); 
+      setLoadingStep(''); 
+    }
   };
 
   const handleExportWord = async () => {
@@ -324,7 +339,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${report.studentName}_Audit.docx`;
+    link.download = `${report.studentName}_Clinical_Audit.docx`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -333,13 +348,14 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <nav className="h-16 glass-nav border-b border-slate-200 flex items-center px-6 md:px-16 justify-between sticky top-0 z-50 no-print">
         <div className="flex items-center gap-4">
-
+          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-black shadow-lg">A</div>
+          <span className="font-extrabold text-lg text-slate-900 tracking-tight">AnatomyGuru <span className="text-red-600">Audit</span></span>
         </div>
         {view === 'report' && (
           <div className="flex gap-2">
-            <button onClick={() => { setReport(null); setView('dashboard'); }} className="text-xs font-bold bg-slate-100 px-4 py-2 rounded-lg">New Analysis</button>
-            <button onClick={handleExportWord} className="text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg">Word Export</button>
-            <button onClick={() => window.print()} className="text-xs font-bold bg-red-600 text-white px-4 py-2 rounded-lg">PDF Export</button>
+            <button onClick={() => { setReport(null); setView('dashboard'); }} className="text-[10px] font-black bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200 transition-all uppercase tracking-widest">New Analysis</button>
+            <button onClick={handleExportWord} className="text-[10px] font-black bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all uppercase tracking-widest">Word Export</button>
+            <button onClick={() => window.print()} className="text-[10px] font-black bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 transition-all uppercase tracking-widest">PDF Export</button>
           </div>
         )}
       </nav>
@@ -349,32 +365,33 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto py-12 animate-fade-in">
             <div className="text-center mb-16">
               <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">Medical <span className="text-red-600">Evaluation</span></h1>
-              <p className="text-slate-500 font-medium text-lg">Professional medical audit engine. Extracts marks and identifies knowledge gaps.</p>
+              <p className="text-slate-500 font-medium text-lg max-w-2xl mx-auto">Professional medical audit engine. Processes complex medical reports with clinical precision.</p>
             </div>
 
             <div className="flex justify-center mb-10">
               <div className="bg-slate-100 p-1.5 rounded-2xl flex border border-slate-200 shadow-inner">
-                <button onClick={() => setEvalMode('with-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'with-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500'}`}>With Manual Notes</button>
-                <button onClick={() => setEvalMode('without-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'without-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500'}`}>Automated (Key Only)</button>
+                <button onClick={() => setEvalMode('with-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'with-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>With Manual Notes</button>
+                <button onClick={() => setEvalMode('without-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'without-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>Automated (Key Only)</button>
               </div>
             </div>
 
             <div className={`grid gap-8 mb-12 ${evalMode === 'with-manual' ? 'md:grid-cols-2' : 'max-w-lg mx-auto'}`}>
-              <FileUploader label="Student Paper" description="PDF, Image, or DOCX" onFileSelect={setSourceDoc} selectedFile={sourceDoc} icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>} />
+              <FileUploader label="Student Answer Sheet" description="PDF, Image, or DOCX" onFileSelect={setSourceDoc} selectedFile={sourceDoc} icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>} />
               {evalMode === 'with-manual' && (
                 <FileUploader label="Faculty Notes" description="Evaluator's handwritten notes" onFileSelect={setDirtyFeedbackDoc} selectedFile={dirtyFeedbackDoc} icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>} />
               )}
             </div>
 
-            {error && <div className="p-5 bg-rose-50 text-rose-600 rounded-2xl mb-8 font-bold border border-rose-100 flex items-center gap-3 animate-shake"><span>⚠️</span> {error}</div>}
+            {error && <div className="p-5 bg-rose-50 text-rose-600 rounded-2xl mb-8 font-bold border border-rose-100 flex items-center gap-3 animate-shake shadow-sm"><span>⚠️</span> {error}</div>}
 
-            <button onClick={handleAnalyze} disabled={isLoading || !sourceDoc} className={`w-full py-6 rounded-2xl font-black text-xl transition-all shadow-xl flex flex-col items-center justify-center gap-1 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed border' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
-              {isLoading ? <><div className="loader mb-2"></div><span className="text-xs uppercase tracking-widest">{loadingStep}</span></> : 'Generate Professional Audit'}
+            <button onClick={handleAnalyze} disabled={isLoading || !sourceDoc} className={`w-full py-6 rounded-2xl font-black text-xl transition-all shadow-2xl flex flex-col items-center justify-center gap-1 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed border' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+              {isLoading ? <><div className="loader mb-2"></div><span className="text-xs uppercase tracking-widest font-black">{loadingStep}</span></> : 'Generate Professional Audit'}
             </button>
+            <p className="mt-8 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Medical-Grade Processing • Optimized for Large Documents</p>
           </div>
         ) : <FeedbackReport report={report} />}
       </main>
-      <footer className="py-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.3em]">Official Audit Portal © 2025 AnatomyGuru</footer>
+      <footer className="py-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.3em] no-print">Official Clinical Audit Portal © 2025 AnatomyGuru</footer>
     </div>
   );
 };
