@@ -1,17 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
-
 export const handler = async (event: any) => {
-  // Handle preflight OPTIONS request
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
-      body: "",
-    };
+    return { statusCode: 200, headers, body: "" };
   }
 
   try {
@@ -19,14 +15,14 @@ export const handler = async (event: any) => {
     if (!apiKey) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "API_KEY is not configured in environment variables." }),
+        headers,
+        body: JSON.stringify({ error: "API_KEY not configured." }),
       };
     }
 
-    // Initialize the correct GoogleGenAI instance
+    const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
-    // Parse incoming request body
     const body = JSON.parse(event.body || "{}");
     const { sourceDoc, dirtyFeedbackDoc, mode } = body;
 
@@ -37,35 +33,6 @@ export const handler = async (event: any) => {
       ${mode === 'with-manual' ? 'Prioritize Answer Key for facts, Faculty Notes for marks. Flag factual contradictions.' : 'Evaluate ALL questions in QP against Key.'}
       
       OUTPUT: Return strictly valid JSON.
-      JSON Structure:
-      {
-        "studentName": string,
-        "testTitle": string,
-        "testTopics": string,
-        "testDate": string,
-        "totalScore": number,
-        "maxScore": number,
-        "questions": [
-          {
-            "qNo": string,
-            "feedbackPoints": string[],
-            "marks": number,
-            "maxMarks": number,
-            "isCorrect": boolean,
-            "isFlagged": boolean
-          }
-        ],
-        "generalFeedback": {
-          "overallPerformance": string[],
-          "mcqs": string[],
-          "contentAccuracy": string[],
-          "completenessOfAnswers": string[],
-          "presentationDiagrams": string[],
-          "investigations": string[],
-          "attemptingQuestions": string[],
-          "actionPoints": string[]
-        }
-      }
     `;
 
     const createPart = (data: any, label: string) => {
@@ -81,7 +48,6 @@ export const handler = async (event: any) => {
     }
     parts.push({ text: "Generate the structured JSON evaluation report." });
 
-    // Correct API call as per @google/genai guidelines
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{ parts }],
@@ -91,27 +57,16 @@ export const handler = async (event: any) => {
       },
     });
 
-    // Extract text using the .text property
-    let jsonString = response.text || "{}";
-
-    // Clean up markdown wrappers if they appear
-    if (jsonString.trim().startsWith('```')) {
-      jsonString = jsonString.trim().replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
-    }
-
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: jsonString,
+      headers,
+      body: response.text || "{}",
     };
   } catch (err: any) {
     console.error("Netlify Function Error:", err);
     return {
       statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
+      headers,
       body: JSON.stringify({ error: err.message || "Internal server error" }),
     };
   }

@@ -3,7 +3,6 @@
   functions = "netlify/functions"
 
 [[redirects]]
-  # Ensure functions are prioritized before the catch-all redirect
   from = "/.netlify/functions/*"
   to = "/.netlify/functions/:splat"
   status = 200
