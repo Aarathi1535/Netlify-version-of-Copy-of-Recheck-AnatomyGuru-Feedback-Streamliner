@@ -97,7 +97,9 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 selection:bg-red-100 selection:text-red-900">
       <nav className="h-16 border-b bg-white/80 backdrop-blur-md flex items-center px-6 md:px-12 justify-between sticky top-0 z-50 no-print shadow-sm">
         <div className="flex items-center gap-3">
-       
+          <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-sm rotate-3">A</div>
+          <span className="font-black text-xl tracking-tighter text-slate-900 hidden sm:inline">AnatomyGuru <span className="text-red-600">Audit</span></span>
+          <span className="font-black text-xl tracking-tighter text-slate-900 sm:hidden">AG Audit</span>
         </div>
         {view === 'report' && (
           <div className="flex items-center gap-2">
@@ -123,8 +125,8 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto py-12 px-6 animate-fade-in w-full">
             <div className="text-center mb-10">
               <span className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black rounded-full uppercase tracking-widest border border-red-100 mb-4 inline-block">Medical Education SaaS</span>
-              <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">Medical <span className="text-red-600">Evaluation</span></h1>
-              <p className="text-slate-500 font-medium text-lg max-w-xl mx-auto">Professional medical audit engine. Extracts marks and identifies knowledge gaps with clinical precision.</p>
+              <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">Clinical <span className="text-red-600">Audit Engine</span></h1>
+              <p className="text-slate-500 font-medium text-lg max-w-xl mx-auto">Transform student papers and faculty notes into structured medical feedback automatically.</p>
             </div>
 
             <div className="flex justify-center mb-10">
@@ -133,13 +135,13 @@ const App: React.FC = () => {
                   onClick={() => setEvalMode('with-manual')} 
                   className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${evalMode === 'with-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  With manual feedback
+                  WITH FACULTY NOTES
                 </button>
                 <button 
                   onClick={() => setEvalMode('without-manual')} 
                   className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${evalMode === 'without-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  Without manual feedback (KEY BASED)
+                  AI ONLY (KEY BASED)
                 </button>
               </div>
             </div>
@@ -194,7 +196,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="py-8 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] no-print">
-        AnatomyGuru Medical Audit Tool • © 2026 
+        AnatomyGuru Medical Audit Tool • © 2025 • Secured by Netlify
       </footer>
     </div>
   );

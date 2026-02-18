@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 // @ts-ignore
 import mammoth from 'mammoth';
+// @ts-ignore
+import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } from 'docx';
+
+// --- PDF.js Setup ---
+const pdfjs: any = (pdfjsLib as any).GlobalWorkerOptions 
+  ? pdfjsLib 
+  : (pdfjsLib as any).default || pdfjsLib;
+
+if (pdfjs && pdfjs.GlobalWorkerOptions) {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+}
 
 // --- TYPES ---
 interface QuestionFeedback {
@@ -76,7 +89,7 @@ const generateStructuredFeedback = async (
     }
   }
 
-  promptParts.push({ text: "Based on these medical documents, generate a comprehensive evaluation report in the requested JSON format." });
+  promptParts.push({ text: "Generate the medical report JSON." });
 
   const response = await fetch("/.netlify/functions/evaluate", {
     method: "POST",
@@ -127,26 +140,13 @@ const FileUploader: React.FC<{
 
 const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report }) => {
   if (!report) return null;
-
   const calculatedSum = report.questions?.reduce((acc, q) => acc + (Number(q.marks) || 0), 0) || 0;
   const logo = 'https://www.anatomyguru.in/assets/img/logo.jpg';
 
-  const renderBulletList = (items?: string[]) => {
-    if (!items || items.length === 0) return <p className="ml-6 text-slate-400 italic text-sm">No specific feedback provided.</p>;
-    return (
-      <ul className="list-disc list-outside ml-10 space-y-1.5 mb-2 text-[13px] text-slate-800 leading-relaxed">
-        {items.map((item, i) => (
-          <li key={i} dangerouslySetInnerHTML={{ __html: item.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-        ))}
-      </ul>
-    );
-  };
-
   return (
-    <div className="max-w-[850px] mx-auto my-6 sm:my-10 bg-white border border-slate-200 p-8 sm:p-14 text-slate-900 shadow-xl report-card animate-fade-in">
-      {/* Header */}
+    <div className="max-w-[850px] mx-auto my-6 sm:my-10 bg-white border border-slate-200 p-8 sm:p-14 text-slate-900 shadow-xl report-card animate-fade-in font-serif">
       <div className="flex flex-col items-center mb-10">
-        <img src={logo} alt="Anatomy Guru Logo" className="w-56 sm:w-64 mb-6 grayscale hover:grayscale-0 transition-all duration-700" />
+        <img src={logo} alt="Anatomy Guru Logo" className="w-56 sm:w-64 mb-6" />
         <h2 className="text-red-600 text-lg font-black uppercase tracking-[0.2em] border-b-2 border-red-100 pb-1 mb-4 text-center">
           {report.testTitle || 'Clinical Evaluation Transcript'}
         </h2>
@@ -156,21 +156,17 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
         </div>
       </div>
 
-      {/* Student Meta */}
       <div className="mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
         <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Candidate:</span>
-        <span className="text-base font-extrabold text-slate-900 underline underline-offset-4 decoration-red-200 decoration-2">
-          {report.studentName}
-        </span>
+        <span className="text-base font-extrabold text-slate-900 underline">{report.studentName}</span>
       </div>
 
-      {/* Results Table */}
       <div className="border border-slate-300 rounded-lg overflow-hidden mb-12">
         <table className="w-full text-left">
-          <thead className="bg-slate-50/50 border-b border-slate-300">
+          <thead className="bg-slate-50 border-b border-slate-300">
             <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
               <th className="p-4 border-r border-slate-300 text-center w-16">No.</th>
-              <th className="p-4 border-r border-slate-300">Clinical Observations & Feedback</th>
+              <th className="p-4 border-r border-slate-300">Clinical Observations</th>
               <th className="p-4 text-center w-24 text-red-600">Marks</th>
             </tr>
           </thead>
@@ -190,13 +186,12 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
             ))}
             <tr className="bg-slate-900 text-white">
               <td colSpan={2} className="p-4 text-right text-[10px] font-black uppercase tracking-[0.2em]">Final Cumulative Score</td>
-              <td className="p-4 text-center font-black text-base">{calculatedSum} <span className="text-white/40 text-xs">/ {report.maxScore}</span></td>
+              <td className="p-4 text-center font-black text-base">{calculatedSum} / {report.maxScore}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      {/* Detailed Sections */}
       <div className="space-y-10">
         <div className="relative">
           <div className="absolute -left-6 top-1 bottom-1 w-1 bg-red-600 rounded-full"></div>
@@ -207,167 +202,183 @@ const FeedbackReport: React.FC<{ report: EvaluationReport | null }> = ({ report 
                 <h4 className="text-xs font-black uppercase text-slate-900 border-b border-slate-100 pb-1">
                   {key.replace(/([A-Z])/g, ' $1')}
                 </h4>
-                {renderBulletList(val as string[])}
+                <ul className="list-disc ml-6 space-y-1.5 text-[13px] text-slate-800 leading-relaxed">
+                  {(val as string[]).map((item, i) => <li key={i} dangerouslySetInnerHTML={{ __html: item.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />)}
+                </ul>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Signature Footer */}
-      <div className="mt-20 pt-10 border-t-2 border-slate-900 flex justify-between items-end">
-        <div className="space-y-1">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Digital Audit ID</p>
-          <p className="text-[12px] font-mono text-slate-900 font-bold">AG-2025-EVAL-{Math.random().toString(36).substring(7).toUpperCase()}</p>
-        </div>
-        <div className="text-right">
-          <div className="w-48 border-b-2 border-slate-900 mb-2"></div>
-          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signature</p>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">AnatomyGuru Clinical Audit Unit</p>
         </div>
       </div>
     </div>
   );
 };
 
-// --- MAIN APP ---
+// --- APP ---
 
 const App: React.FC = () => {
   const [sourceDoc, setSourceDoc] = useState<File | null>(null);
   const [dirtyFeedbackDoc, setDirtyFeedbackDoc] = useState<File | null>(null);
   const [report, setReport] = useState<EvaluationReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<string>('');
+  const [loadingStep, setLoadingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'dashboard' | 'report'>('dashboard');
   const [evalMode, setEvalMode] = useState<EvaluationMode>('with-manual');
 
+  useEffect(() => {
+    if (report) setView('report');
+  }, [report]);
+
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    if (!pdfjs || !pdfjs.getDocument) throw new Error("PDF parser not ready.");
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += `[P${i}] ${pageText}\n`;
+    }
+    return fullText;
+  };
+
   const processFile = async (file: File): Promise<FileData> => {
-    const isDocx = file.name.toLowerCase().endsWith('.docx');
+    const fileName = file.name.toLowerCase();
+    const isDocx = fileName.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const isPdf = fileName.endsWith('.pdf') || file.type === 'application/pdf';
+    
     if (isDocx) {
+      setLoadingStep(`Parsing DOCX: ${file.name}`);
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
       return { text: result.value, name: file.name, isDocx: true };
+    } 
+    
+    if (isPdf) {
+      setLoadingStep(`Extracting PDF: ${file.name}`);
+      try {
+        const text = await extractTextFromPDF(file);
+        if (text.trim().length > 150) return { text, name: file.name, isDocx: false };
+      } catch (e) { console.warn("Fallback to Vision for PDF", e); }
     }
+
+    setLoadingStep(`Encoding Visual Data: ${file.name}`);
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+      reader.readAsDataURL(file);
       reader.onload = () => resolve((reader.result as string).split(',')[1]);
       reader.onerror = reject;
-      reader.readAsDataURL(file);
     });
+
     return { base64, mimeType: file.type, name: file.name, isDocx: false };
   };
 
   const handleAnalyze = async () => {
-    if (!sourceDoc || (evalMode === 'with-manual' && !dirtyFeedbackDoc)) {
-      setError("Please ensure both student paper and notes are uploaded.");
-      return;
-    }
+    if (!sourceDoc) { setError("Please upload the Student Paper."); return; }
+    if (evalMode === 'with-manual' && !dirtyFeedbackDoc) { setError("Please upload Faculty Notes."); return; }
     setIsLoading(true);
     setError(null);
-    setStep('Parsing documents...');
     try {
-      const sData = await processFile(sourceDoc);
-      const fData = dirtyFeedbackDoc ? await processFile(dirtyFeedbackDoc) : null;
-      setStep('AI medical audit in progress...');
-      const res = await generateStructuredFeedback(sData, fData, evalMode);
-      setReport(res);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-      setError(err.message || "Something went wrong during the audit.");
-    } finally {
-      setIsLoading(false);
-      setStep('');
-    }
+      const sourceData = await processFile(sourceDoc);
+      const feedbackData = evalMode === 'with-manual' && dirtyFeedbackDoc ? await processFile(dirtyFeedbackDoc) : null;
+      setLoadingStep("AI performing medical audit...");
+      const result = await generateStructuredFeedback(sourceData, feedbackData, evalMode);
+      setReport(result);
+    } catch (err: any) { setError(err.message || "An error occurred."); } 
+    finally { setIsLoading(false); setLoadingStep(''); }
+  };
+
+  const handleExportWord = async () => {
+    if (!report) return;
+    const sections: any[] = [];
+    sections.push(
+      new Paragraph({ children: [new TextRun({ text: report.testTitle || 'Medical Audit', bold: true, size: 32 })], heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+      new Paragraph({ children: [new TextRun({ text: `Student: ${report.studentName}`, bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: `Date: ${report.testDate}` })] }),
+      new Paragraph({ children: [] })
+    );
+
+    const tableRows = [
+      new TableRow({ children: [
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Q No", bold: true })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Observations", bold: true })] })] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Marks", bold: true })] })] }),
+      ]})
+    ];
+
+    report.questions.forEach((q) => {
+      tableRows.push(new TableRow({ children: [
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(q.qNo)] })] }),
+        new TableCell({ children: q.feedbackPoints.map(p => new Paragraph({ children: [new TextRun("• " + p)] })) }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(`${q.marks}`)] })] }),
+      ]}));
+    });
+
+    sections.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }));
+    
+    const doc = new Document({ sections: [{ children: sections }] });
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${report.studentName}_Audit.docx`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navigation */}
-      <nav className="h-20 glass-nav border-b border-slate-100 flex items-center px-6 md:px-16 justify-between sticky top-0 z-50 no-print">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
+      <nav className="h-16 glass-nav border-b border-slate-200 flex items-center px-6 md:px-16 justify-between sticky top-0 z-50 no-print">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-200 rotate-2">A</div>
-          <div className="flex flex-col -space-y-1">
-            <span className="font-extrabold text-lg tracking-tight text-slate-900">AnatomyGuru</span>
-            <span className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em]">Audit Engine</span>
-          </div>
+          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-black">A</div>
+          <span className="font-extrabold text-lg text-slate-900">AnatomyGuru <span className="text-red-600">Audit</span></span>
         </div>
-        {report && (
-          <div className="flex items-center gap-3">
-            <button onClick={() => window.print()} className="hidden sm:flex text-[10px] font-black bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-all items-center gap-2 uppercase tracking-widest shadow-sm">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 012-2H5a2 2 0 012 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-              Print
-            </button>
-            <button onClick={() => setReport(null)} className="text-[10px] font-black bg-slate-900 text-white px-5 py-2 rounded-lg hover:bg-red-600 transition-all uppercase tracking-widest shadow-lg shadow-slate-200">New Audit</button>
+        {view === 'report' && (
+          <div className="flex gap-2">
+            <button onClick={() => { setReport(null); setView('dashboard'); }} className="text-xs font-bold bg-slate-100 px-4 py-2 rounded-lg">New Analysis</button>
+            <button onClick={handleExportWord} className="text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg">Word Export</button>
+            <button onClick={() => window.print()} className="text-xs font-bold bg-red-600 text-white px-4 py-2 rounded-lg">PDF Export</button>
           </div>
         )}
       </nav>
 
       <main className="flex-1 p-6 md:p-12">
-        {!report ? (
+        {view === 'dashboard' ? (
           <div className="max-w-4xl mx-auto py-12 animate-fade-in">
-            <div className="text-center mb-16 space-y-4">
-              <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight">Clinical <span className="text-red-600">Audit Streamlined</span></h1>
-              <p className="text-slate-500 font-medium text-lg max-w-2xl mx-auto">Upload medical answer sheets and faculty notes to generate structured, professional feedback reports instantly.</p>
+            <div className="text-center mb-16">
+              <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">Clinical <span className="text-red-600">Evaluation</span></h1>
+              <p className="text-slate-500 font-medium text-lg">Professional medical audit engine. Extracts marks and identifies knowledge gaps.</p>
             </div>
 
-            <div className="flex justify-center mb-12">
-              <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200">
-                <button onClick={() => setEvalMode('with-manual')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${evalMode === 'with-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>WITH NOTES</button>
-                <button onClick={() => setEvalMode('without-manual')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${evalMode === 'without-manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>AI ONLY</button>
+            <div className="flex justify-center mb-10">
+              <div className="bg-slate-100 p-1.5 rounded-2xl flex border border-slate-200 shadow-inner">
+                <button onClick={() => setEvalMode('with-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'with-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500'}`}>With Manual Notes</button>
+                <button onClick={() => setEvalMode('without-manual')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${evalMode === 'without-manual' ? 'bg-white shadow-md text-slate-900' : 'text-slate-500'}`}>Automated (Key Only)</button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-              <FileUploader 
-                label="Student Answer Paper" 
-                description="PDF, Images, or DOCX" 
-                onFileSelect={setSourceDoc} 
-                selectedFile={sourceDoc} 
-                icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
-              />
+            <div className={`grid gap-8 mb-12 ${evalMode === 'with-manual' ? 'md:grid-cols-2' : 'max-w-lg mx-auto'}`}>
+              <FileUploader label="Student Paper" description="PDF, Image, or DOCX" onFileSelect={setSourceDoc} selectedFile={sourceDoc} icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>} />
               {evalMode === 'with-manual' && (
-                <FileUploader 
-                  label="Faculty Rough Notes" 
-                  description="Evaluator's manual feedback" 
-                  onFileSelect={setDirtyFeedbackDoc} 
-                  selectedFile={dirtyFeedbackDoc} 
-                  icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>} 
-                />
+                <FileUploader label="Faculty Notes" description="Evaluator's handwritten notes" onFileSelect={setDirtyFeedbackDoc} selectedFile={dirtyFeedbackDoc} icon={<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>} />
               )}
             </div>
 
-            {error && <div className="p-5 bg-red-50 text-red-700 rounded-2xl mb-8 text-sm font-bold border border-red-100 flex items-center gap-3 animate-fade-in"><span className="text-lg">⚠️</span> {error}</div>}
+            {error && <div className="p-5 bg-rose-50 text-rose-600 rounded-2xl mb-8 font-bold border border-rose-100 flex items-center gap-3 animate-shake"><span>⚠️</span> {error}</div>}
 
-            <button 
-              onClick={handleAnalyze} 
-              disabled={isLoading || !sourceDoc}
-              className={`w-full py-7 rounded-2xl font-black text-xl tracking-tight transition-all shadow-2xl flex items-center justify-center gap-4 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-red-600 hover:-translate-y-1 active:scale-95'}`}
-            >
-              {isLoading ? (
-                <>
-                  <div className="loader"></div>
-                  <span className="uppercase tracking-widest text-xs font-black">{step}</span>
-                </>
-              ) : 'Generate Professional Audit'}
+            <button onClick={handleAnalyze} disabled={isLoading || !sourceDoc} className={`w-full py-6 rounded-2xl font-black text-xl transition-all shadow-xl flex flex-col items-center justify-center gap-1 ${isLoading ? 'bg-slate-100 text-slate-400 cursor-not-allowed border' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+              {isLoading ? <><div className="loader mb-2"></div><span className="text-xs uppercase tracking-widest">{loadingStep}</span></> : 'Generate Professional Audit'}
             </button>
-            <p className="mt-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Secure Medical Processing • Powered by AnatomyGuru</p>
           </div>
-        ) : (
-          <div className="animate-fade-in py-6">
-            <FeedbackReport report={report} />
-          </div>
-        )}
+        ) : <FeedbackReport report={report} />}
       </main>
-
-      <footer className="py-12 text-center text-slate-400 text-[9px] font-black uppercase tracking-[0.3em] no-print">
-        Official Clinical Evaluation Portal • &copy; 2025 • AnatomyGuru
-      </footer>
+      <footer className="py-10 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.3em]">Official Audit Portal © 2025 AnatomyGuru</footer>
     </div>
   );
 };
 
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<App />);
-}
+const root = createRoot(document.getElementById('root')!);
+root.render(<App />);
