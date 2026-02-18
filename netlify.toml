@@ -3,3 +3,5 @@
 
 [functions]
   directory = "netlify/functions"
+  [functions.node_bundle]
+    external_node_modules = []
